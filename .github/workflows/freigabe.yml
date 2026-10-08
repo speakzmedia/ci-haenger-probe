@@ -1,0 +1,9 @@
+name: Probe Freigabe
+on: workflow_dispatch
+permissions: {}
+jobs:
+  warte:
+    runs-on: ubuntu-latest
+    environment: probe-freigabe
+    steps:
+      - run: echo "freigegeben"
