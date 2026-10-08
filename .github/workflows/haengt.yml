@@ -1,0 +1,9 @@
+name: Probe haengt
+on: workflow_dispatch
+permissions: {}
+jobs:
+  warte:
+    runs-on: ubuntu-latest
+    environment: probe-haengt
+    steps:
+      - run: echo "lief doch"
