@@ -10,6 +10,9 @@ on:
       modus:
         type: string
         default: ''
+      runs_on:
+        type: string
+        default: 'ubuntu-latest'
 
 jobs:
   test:
@@ -34,8 +37,8 @@ jobs:
   fingerprint:
     needs: test
     if: ${{ !cancelled() && needs.test.outputs.fingerprint != '' }}
-    name: ${{ format('OTA-Fingerprint{0} {1}', ':', needs.test.outputs.fingerprint) }}
-    runs-on: ubuntu-latest
+    name: 'OTA-Fingerprint: ${{ needs.test.outputs.fingerprint }}'
+    runs-on: ${{ inputs.runs_on == 'speakz-mini' && 'ci-leicht' || inputs.runs_on }}
     timeout-minutes: 5
     permissions: {}
     steps:
