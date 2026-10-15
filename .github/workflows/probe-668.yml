@@ -31,5 +31,44 @@ jobs:
       - name: Ergebnis
         env:
           ERGEBNIS: ${{ needs.test.outputs.fingerprint }}
+          ZWEIG: ${{ github.head_ref || github.ref_name }}
         run: |
           echo "OTA-Fingerprint: $ERGEBNIS. Die bewegten Quellen stehen im Job test, Schritt OTA-Fingerprint gegen die Basis, und in seiner Zusammenfassung."
+          case "$ZWEIG" in
+            renovate/*) ;;
+            *) exit 0 ;;
+          esac
+          if [ "$ERGEBNIS" = "unverändert" ]; then exit 0; fi
+          echo "::error title=OTA-Fingerprint::Renovate-Zweig $ZWEIG, OTA-Fingerprint $ERGEBNIS. Dieser Check ist deshalb rot, und Renovate merged den PR nicht selbst. Ist der Sprung gewollt (neuer nativer Stand mit Store-Build), von Hand mergen; bei „nicht geprüft“ den Lauf neu starten (speakz-app-kit#668)."
+          exit 1
+  vendor:
+    if: ${{ github.actor != 'github-actions[bot]' && startsWith(github.head_ref, 'renovate/') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - id: push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          date -u +%FT%TZ > vendor-stand.txt
+          git add vendor-stand.txt
+          git commit -m "Probe #668: Bot-Commit wie edge-vendor-renovate"
+          git push origin "HEAD:$GITHUB_HEAD_REF"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.push.outputs.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          for i in $(seq 1 12); do
+            sleep 10
+            ids=$(gh api "repos/$REPO/actions/runs?head_sha=$SHA&event=pull_request" --jq '.workflow_runs[]|select(.conclusion=="action_required")|.id')
+            gh api "repos/$REPO/actions/runs?head_sha=$SHA" --jq '.workflow_runs[]|[.id,.name,.event,.status,.conclusion,.actor.login]|@tsv'
+            if [ -n "$ids" ]; then for id in $ids; do echo "approve $id: $(gh api -X POST "repos/$REPO/actions/runs/$id/approve" -i 2>&1 | head -1)"; done; exit 0; fi
+          done
+          echo "kein wartender Lauf an $SHA"; exit 1
