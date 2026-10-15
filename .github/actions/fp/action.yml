@@ -1,0 +1,22 @@
+# Probe für speakz-app-kit#668: Stellvertreter von .github/actions/fingerprint-diff.
+# Ein Kindprozess schreibt `ergebnis` nach GITHUB_OUTPUT, wie es run.mjs tun soll.
+name: fp-probe
+inputs:
+  modus:
+    required: true
+outputs:
+  ergebnis:
+    value: ${{ steps.messen.outputs.ergebnis }}
+runs:
+  using: composite
+  steps:
+    - id: messen
+      shell: bash
+      env:
+        MODUS: ${{ inputs.modus }}
+      run: |
+        case "$MODUS" in
+          bewegt|bewegt-rot) node -e 'require("fs").appendFileSync(process.env.GITHUB_OUTPUT, "ergebnis=bewegt (ios, android)\n")' ;;
+          unveraendert) node -e 'require("fs").appendFileSync(process.env.GITHUB_OUTPUT, "ergebnis=unverändert\n")' ;;
+          absturz) echo "Absturz ohne Ergebnis"; exit 1 ;;
+        esac

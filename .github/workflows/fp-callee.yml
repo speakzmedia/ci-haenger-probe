@@ -1,0 +1,44 @@
+name: fp-callee
+
+# Probe für speakz-app-kit#668: erscheint ein Job, dessen name aus needs-Ausgaben entsteht,
+# in `gh pr checks`, auch hinter einem Aufruf (`test / …`), und wie sieht er übersprungen aus?
+# Die Ausgabe-Kette ist dieselbe wie in app-ci.yml: Composite-Action → Schritt → Job → name.
+
+on:
+  workflow_call:
+    inputs:
+      modus:
+        type: string
+        default: ''
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      fingerprint: ${{ (steps.fingerprint.outcome == 'success' || steps.fingerprint.outcome == 'failure') && (steps.fingerprint.outputs.ergebnis || 'nicht geprüft') || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: OTA-Fingerprint gegen die Basis
+        id: fingerprint
+        if: ${{ inputs.modus != '' && github.event_name == 'pull_request' && !cancelled() }}
+        continue-on-error: true
+        uses: ./.github/actions/fp
+        with:
+          modus: ${{ inputs.modus }}
+      - name: Test rot
+        if: ${{ inputs.modus == 'bewegt-rot' }}
+        run: exit 1
+
+  fingerprint:
+    needs: test
+    if: ${{ !cancelled() && needs.test.outputs.fingerprint != '' }}
+    name: ${{ format('OTA-Fingerprint{0} {1}', ':', needs.test.outputs.fingerprint) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - env:
+          ERGEBNIS: ${{ needs.test.outputs.fingerprint }}
+        run: echo "OTA-Fingerprint $ERGEBNIS"

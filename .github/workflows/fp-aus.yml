@@ -1,0 +1,7 @@
+name: fp-aus
+# Probe speakz-app-kit#668, Aufrufer ohne permissions (Vorgabe der Org).
+on:
+  pull_request:
+jobs:
+  test:
+    uses: ./.github/workflows/fp-callee.yml
