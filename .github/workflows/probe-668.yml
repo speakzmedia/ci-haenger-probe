@@ -1,0 +1,35 @@
+# Probe für speakz-app-kit#668, erzeugt aus app-ci.yml (Job fingerprint wortgleich).
+name: Probe 668 Fingerprint-Stopp
+on:
+  pull_request: null
+permissions: {}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      fingerprint: ${{ steps.fingerprint.outputs.ergebnis }}
+    steps:
+      - id: fingerprint
+        env:
+          EREIGNIS: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
+          REF_NAME: ${{ github.ref_name }}
+          ATTEMPT: ${{ github.run_attempt }}
+          AKTEUR: ${{ github.actor }}
+        run: |
+          echo "event=$EREIGNIS head_ref=$HEAD_REF ref_name=$REF_NAME attempt=$ATTEMPT actor=$AKTEUR"
+          echo "ergebnis=bewegt (ios, android)" >> "$GITHUB_OUTPUT"
+  fingerprint:
+    needs: test
+    if: ${{ !cancelled() && needs.test.outputs.fingerprint != '' }}
+    name: "OTA-Fingerprint: ${{ needs.test.outputs.fingerprint }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Ergebnis
+        env:
+          ERGEBNIS: ${{ needs.test.outputs.fingerprint }}
+        run: |
+          echo "OTA-Fingerprint: $ERGEBNIS. Die bewegten Quellen stehen im Job test, Schritt OTA-Fingerprint gegen die Basis, und in seiner Zusammenfassung."
